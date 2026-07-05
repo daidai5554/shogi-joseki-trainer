@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { Position } from "tsshogi";
+import { createKakugawariPresetBooks } from "./presets/kakugawariShiken";
 import { STANDARD_ROOT_KEY, sideToColor, turnOfKey } from "./shogi";
 import { isDue, newCard, rateCard } from "./srs";
 import type { AppData, Book, JosekiEdge, JosekiNode, Side, SrsCard } from "./types";
@@ -71,7 +72,14 @@ function sanitizeBook(v: unknown): Book | null {
       ? node.moves.map(sanitizeEdge).filter((e): e is JosekiEdge => e !== null)
       : [];
     const comment = typeof node.comment === "string" ? node.comment.slice(0, 5000) : "";
-    outNodes[key] = { moves, comment };
+    const out: JosekiNode = { moves, comment };
+    if (typeof node.evalCp === "number" && isFinite(node.evalCp)) {
+      out.evalCp = Math.max(-30000, Math.min(30000, node.evalCp));
+    }
+    if (typeof node.evalMate === "number" && isFinite(node.evalMate)) {
+      out.evalMate = Math.max(-1000, Math.min(1000, node.evalMate));
+    }
+    outNodes[key] = out;
   }
   if (!outNodes[root]) {
     outNodes[root] = { moves: [], comment: "" };
@@ -249,6 +257,42 @@ class Store {
     if (!book) return;
     this.ensureNode(book, key).comment = comment;
     this.commit();
+  }
+
+  setNodeEval(
+    bookId: string,
+    key: string,
+    evalCp: number | null,
+    evalMate: number | null,
+  ): void {
+    const book = this.getBook(bookId);
+    if (!book) return;
+    const node = this.ensureNode(book, key);
+    if (evalCp !== null) node.evalCp = evalCp;
+    else delete node.evalCp;
+    if (evalMate !== null) node.evalMate = evalMate;
+    else delete node.evalMate;
+    this.commit();
+  }
+
+  /** 角交換四間飛車のプリセット定跡を読み込む(同名ブックは上書き) */
+  loadKakugawariPreset(): { nodes: number; books: number } {
+    const presets = createKakugawariPresetBooks();
+    let nodes = 0;
+    for (const preset of presets) {
+      const idx = this.data.books.findIndex(
+        (b) => b.id === preset.id || b.name === preset.name,
+      );
+      if (idx >= 0) {
+        this.data.books[idx] = preset;
+      } else {
+        this.data.books.push(preset);
+      }
+      nodes += Object.keys(preset.nodes).length;
+    }
+    this.data.activeBookId = presets[0].id;
+    this.commit();
+    return { nodes, books: presets.length };
   }
 
   /** ルートから到達できないノードとそのカードを削除する */

@@ -15,6 +15,10 @@ export interface JosekiEdge {
 export interface JosekiNode {
   moves: JosekiEdge[];
   comment: string;
+  /** 保存済み評価(cp)。USI同様、手番側から見た値 */
+  evalCp?: number;
+  /** 保存済み詰み手数。USI同様、手番側から見た符号 */
+  evalMate?: number;
 }
 
 /** 定跡ブック(先手用/後手用などを分けて管理) */

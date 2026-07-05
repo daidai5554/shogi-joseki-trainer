@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Move, Square } from "tsshogi";
 import { BookSelector } from "../components/BookSelector";
+import { EvalPanel } from "../components/EvalPanel";
 import { ShogiBoard } from "../components/ShogiBoard";
 import { keyToPosition, usiToDestination } from "../lib/shogi";
 import { store, useStoreRevision } from "../lib/store";
@@ -256,13 +257,23 @@ export function QuizPage() {
         </button>
       </div>
       {position && (
-        <ShogiBoard
-          position={position}
-          flipped={book.side === "white"}
-          interactive={interactive}
-          onMove={handleMove}
-          lastMoveTo={line.lastTo}
-        />
+        <>
+          <ShogiBoard
+            position={position}
+            flipped={book.side === "white"}
+            interactive={interactive}
+            onMove={handleMove}
+            lastMoveTo={line.lastTo}
+          />
+          <EvalPanel
+            bookId={book.id}
+            sfenKey={line.key}
+            userSide={book.side}
+            cachedCp={node?.evalCp}
+            cachedMate={node?.evalMate}
+            compact
+          />
+        </>
       )}
       <div className={`quiz-message ${line.phase}`}>{message}</div>
       {line.phase === "wrong" && (

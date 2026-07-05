@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Move, Square } from "tsshogi";
 import { BookSelector } from "../components/BookSelector";
+import { EvalPanel } from "../components/EvalPanel";
 import { ShogiBoard } from "../components/ShogiBoard";
 import { keyToPosition, moveLabel, normalizeSfen, sideToColor } from "../lib/shogi";
 import { store, useStoreRevision } from "../lib/store";
@@ -73,6 +74,13 @@ export function EditorPage() {
         interactive
         onMove={handleMove}
         lastMoveTo={replay.lastTo}
+      />
+      <EvalPanel
+        bookId={book.id}
+        sfenKey={currentKey}
+        userSide={book.side}
+        cachedCp={node?.evalCp}
+        cachedMate={node?.evalMate}
       />
       <div className="toolbar">
         <button type="button" className="btn" disabled={path.length === 0} onClick={() => setPath([])}>

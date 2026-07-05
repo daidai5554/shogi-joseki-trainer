@@ -54,8 +54,34 @@ export function SettingsPage() {
     }
   };
 
+  const handleLoadPreset = () => {
+    if (
+      !window.confirm(
+        "角交換四間飛車のプリセット定跡(先手番・後手番)を読み込みます。\n" +
+          "同名のブックがある場合は上書きされます。よろしいですか?",
+      )
+    ) {
+      return;
+    }
+    const result = store.loadKakugawariPreset();
+    setMessage(
+      `プリセットを読み込みました(ブック${result.books}冊・局面${result.nodes})。「定跡」タブで確認できます。`,
+    );
+  };
+
   return (
     <div className="page">
+      <section className="panel">
+        <h3>プリセット定跡</h3>
+        <p className="hint">
+          角交換四間飛車の基本手順(本筋・△7四歩・4五桂・4六歩・居飛車穴熊対策など)を
+          分岐付きで登録します。各局面にメモ付き。登録後は自由に修正・追記できます。
+        </p>
+        <button type="button" className="btn primary" onClick={handleLoadPreset}>
+          角交換四間飛車プリセットを読み込む
+        </button>
+      </section>
+
       <section className="panel">
         <h3>データ</h3>
         <p className="hint">

@@ -3,5 +3,6 @@ dist
 dev-dist
 *.local
 .DS_Store
+public/engine/yaneuraou.k-p.*
 # prebuild/predev で自動生成される
 public/icons/

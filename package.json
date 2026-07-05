@@ -5,13 +5,14 @@
   "type": "module",
   "description": "角交換四間飛車の定跡練習用PWA",
   "scripts": {
-    "predev": "node scripts/generate-icons.mjs",
+    "predev": "node scripts/generate-icons.mjs && node scripts/copy-engine.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/generate-icons.mjs",
+    "prebuild": "node scripts/generate-icons.mjs && node scripts/copy-engine.mjs",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mizarjp/yaneuraou.k-p": "7.6.3-alpha.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tsshogi": "^2.3.4"
