@@ -1,0 +1,125 @@
+# 将棋定跡トレーナー (shogi-joseki-trainer)
+
+角交換四間飛車の定跡練習用PWAアプリです。スマホ縦画面のブラウザ操作を前提に、
+「定跡の登録 → SRS付き出題 → 実戦棋譜の逸脱チェック → 弱点ドリル化」のループを回せます。
+
+- **完全オフライン動作**(PWA / Service Worker)
+- **データは端末内にのみ保存**(localStorage)。外部送信は一切ありません
+- 将棋ロジックは [tsshogi](https://github.com/sunfish-shogi/tsshogi) を使用
+
+## 機能
+
+### 1. 定跡ツリー管理(「定跡」タブ)
+- 盤面を動かすだけで自分の定跡が分岐付きで登録されます
+- 局面は **SFENをキー** に管理しており、手順前後による**合流**も1つのノードとして扱います
+- 各局面にメモを残せます
+- 先手番用/後手番用のブックを分けて管理できます(盤の反転表示対応)
+- タッチ操作: 駒をタップ → 移動先をタップ。成り/不成の確認、持ち駒からの打ちにも対応
+
+### 2. 出題モード(「出題」タブ)
+- ツリーから**自分の手番の局面**を出題し、盤上で次の一手を入力します
+- 相手の応手はツリーの分岐から**ランダム**に選ばれ、実戦風に数手継続します
+- **簡易SM-2方式のSRS**により、間違えた局面ほど高頻度で再出題されます
+
+### 3. ウォーズ棋譜の逸脱検出(「棋譜」タブ)
+- KIF棋譜を貼り付けると「**何手目**で定跡から外れたか」「外したのは**自分か相手か**」をレポートします
+- ワンタップでその手順をツリーに追記し、出題優先度を最高に設定できます
+- 「実戦 → 棋譜貼り付け → 弱点が自動でドリル入り → 出題で潰す」ループが回せます
+
+### 4. データ管理(「設定」タブ)
+- JSONエクスポート/インポート(機種変更・バックアップ用)
+
+## 起動方法(開発)
+
+Node.js 20.19 以上(22系を推奨)が必要です(Vite 7の要件)。
+
+```bash
+npm install
+npm run dev
+```
+
+表示されたURL(通常 http://localhost:5173)をブラウザで開きます。
+
+同じWi-Fi内のスマホから試す場合は `npm run dev -- --host` で起動し、
+表示されるLAN側のURLをスマホで開いてください。
+
+## ビルド
+
+```bash
+npm run build      # dist/ に静的ファイルを出力
+npm run preview    # ビルド結果をローカルで確認
+```
+
+## スマホへのPWA導入手順(Android)
+
+1. アプリをデプロイしたURL(下記のGitHub Pagesなど)をChromeで開く
+2. 右上のメニュー(⋮)→「**ホーム画面に追加**」または「**アプリをインストール**」をタップ
+3. ホーム画面のアイコンから起動すると、全画面のアプリとして動作します
+4. 一度読み込めば**オフラインでも動作**します(Service Workerがキャッシュ)
+
+> PWAのインストールには **HTTPS配信が必須**です(GitHub PagesはHTTPSなのでOK)。
+
+## GitHub Pagesへのデプロイ手順
+
+### 方法A: GitHub Actionsで自動デプロイ(推奨)
+
+このリポジトリには `.github/workflows/deploy.yml` を同梱しています。
+
+1. GitHubにリポジトリ(例: `shogi-joseki-trainer`)を作成してpush
+   ```bash
+   git remote add origin https://github.com/<ユーザー名>/shogi-joseki-trainer.git
+   git push -u origin main
+   ```
+2. GitHubのリポジトリ設定 → **Pages** → 「Build and deployment」の Source を
+   「**GitHub Actions**」に変更
+3. mainブランチにpushするたびに自動でビルド&デプロイされます
+4. 公開URL: `https://<ユーザー名>.github.io/shogi-joseki-trainer/`
+
+### 方法B: 手動デプロイ
+
+リポジトリ名をベースパスに指定してビルドします。
+
+```powershell
+# PowerShellの場合
+$env:BASE_PATH = "/shogi-joseki-trainer/"
+npm run build
+```
+
+```bash
+# bashの場合
+BASE_PATH=/shogi-joseki-trainer/ npm run build
+```
+
+`dist/` の中身を `gh-pages` ブランチなどに配置してPagesの公開対象にします。
+
+## セキュリティについて
+
+「このアプリから操作しているスマホ側へ攻撃されない」ことを意図して、次の対策を入れています。
+
+- **Content-Security-Policy** をビルド時に注入
+  (`script-src 'self'` などにより、外部スクリプトの読み込みとインラインスクリプトの実行を遮断)
+- **外部通信ゼロ**: すべての処理・保存が端末内で完結します(`connect-src 'self'`)
+- **入力の検証**: JSONインポートは全フィールドを型・内容チェックしてから取り込みます
+  (SFENの妥当性検証を含む)。KIFはtsshogiのパーサーで解析され、文字列として以外に評価されません
+- **XSS対策**: `dangerouslySetInnerHTML` や `eval` は不使用。表示はすべてReactの
+  エスケープを通ります
+- `referrer` 無効化、`object-src 'none'`、`base-uri 'none'` など
+
+## 使い方の流れ(例)
+
+1. 「定跡」タブでブック(先手番/後手番)を選び、藤井猛九段の本の手順を盤で並べて登録
+2. 分岐(相手の応手のバリエーション)も盤で並べて登録。要所にメモ
+3. 毎日「出題」タブで復習(期限が来た局面だけ出題されます)
+4. ウォーズで指したら「棋譜」タブにKIFを貼り付けて逸脱チェック
+5. 相手の新手はツリーに追記 → 「定跡」タブで自分の応手を登録 → 出題で定着
+
+## 技術構成
+
+- Vite + React + TypeScript(静的Webアプリ)
+- vite-plugin-pwa(Workbox)によるオフライン対応
+- tsshogi(盤面・合法手判定・KIF/SFENパース)
+- 保存: localStorage + JSONエクスポート/インポート
+
+## ライセンス
+
+Private use.

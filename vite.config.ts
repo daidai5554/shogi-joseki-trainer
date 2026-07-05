@@ -1,0 +1,76 @@
+import { defineConfig, type PluginOption } from "vite";
+import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
+
+// 本番ビルドにのみ Content-Security-Policy を注入する。
+// (開発サーバーは HMR 用のインラインスクリプトを使うため対象外)
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "manifest-src 'self'",
+  "worker-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+function injectCsp(): PluginOption {
+  return {
+    name: "inject-csp",
+    apply: "build",
+    transformIndexHtml(html) {
+      return {
+        html,
+        tags: [
+          {
+            tag: "meta",
+            attrs: { "http-equiv": "Content-Security-Policy", content: CSP },
+            injectTo: "head-prepend",
+          },
+        ],
+      };
+    },
+  };
+}
+
+export default defineConfig({
+  // GitHub Pages へデプロイする場合は BASE_PATH=/リポジトリ名/ を指定する
+  base: process.env.BASE_PATH || "/",
+  plugins: [
+    react(),
+    injectCsp(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["icons/icon-192.png", "icons/icon-512.png"],
+      manifest: {
+        name: "将棋定跡トレーナー",
+        short_name: "定跡トレーナー",
+        description: "角交換四間飛車の定跡練習用アプリ(オフライン対応)",
+        lang: "ja",
+        display: "standalone",
+        orientation: "portrait",
+        background_color: "#12121c",
+        theme_color: "#12121c",
+        icons: [
+          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "icons/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
+        navigateFallback: "index.html",
+      },
+    }),
+  ],
+});

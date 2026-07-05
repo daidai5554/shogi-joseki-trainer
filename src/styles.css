@@ -1,0 +1,519 @@
+:root {
+  --bg: #12121c;
+  --bg-panel: #1d1d2c;
+  --fg: #e8e8f0;
+  --fg-dim: #9a9ab0;
+  --accent: #e0a53f;
+  --danger: #d05555;
+  --board-bg: #d9b36c;
+  --board-line: #7a5b2e;
+  --piece-fg: #1c1207;
+  --cell-selected: #f2d27e;
+  --cell-dest: rgba(70, 140, 70, 0.45);
+  --cell-last: rgba(224, 165, 63, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
+  overscroll-behavior: none;
+}
+
+.app {
+  max-width: 520px;
+  margin: 0 auto;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+
+.app-header {
+  padding: 10px 14px 4px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg-dim);
+}
+
+.page {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---- パネル ---- */
+.panel {
+  background: var(--bg-panel);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.panel h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.panel.center {
+  text-align: center;
+}
+
+.hint {
+  color: var(--fg-dim);
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.done-text {
+  color: #6fc46f;
+  font-size: 13px;
+}
+
+.comment-text {
+  white-space: pre-wrap;
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ---- ボタン ---- */
+.btn {
+  appearance: none;
+  border: 1px solid #3a3a50;
+  background: #262638;
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1408;
+  font-weight: 700;
+}
+
+.btn.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn.small {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+/* ---- ブック選択 ---- */
+.book-selector {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.book-selector select {
+  flex: 1;
+  min-width: 180px;
+  background: var(--bg-panel);
+  color: var(--fg);
+  border: 1px solid #3a3a50;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.book-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* ---- 盤面 ---- */
+.board-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  user-select: none;
+}
+
+.board-frame {
+  position: relative;
+}
+
+.file-labels {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  margin-right: 16px;
+  color: var(--fg-dim);
+  font-size: 10px;
+  text-align: center;
+}
+
+.board-row {
+  display: flex;
+}
+
+.board-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  aspect-ratio: 1;
+  background: var(--board-bg);
+  border: 2px solid var(--board-line);
+}
+
+.rank-labels {
+  width: 16px;
+  display: grid;
+  grid-template-rows: repeat(9, 1fr);
+  color: var(--fg-dim);
+  font-size: 10px;
+  align-items: center;
+  text-align: center;
+}
+
+.cell {
+  position: relative;
+  border: 0.5px solid var(--board-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell.selected {
+  background: var(--cell-selected);
+}
+
+.cell.dest {
+  background: var(--cell-dest);
+}
+
+.cell.last-move {
+  background: var(--cell-last);
+}
+
+.cell.selected.dest {
+  background: var(--cell-dest);
+}
+
+.dest-dot {
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: rgba(30, 80, 30, 0.55);
+}
+
+.piece {
+  font-family: "Hiragino Mincho ProN", "Noto Serif JP", serif;
+  font-weight: 700;
+  font-size: clamp(16px, 7.2vw, 30px);
+  line-height: 1;
+  color: var(--piece-fg);
+}
+
+.piece.enemy {
+  transform: rotate(180deg);
+}
+
+/* ---- 持ち駒 ---- */
+.hand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 2px 4px;
+}
+
+.hand-mark {
+  font-size: 12px;
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+
+.hand-mark.turn {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.hand-pieces {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.hand-empty {
+  color: var(--fg-dim);
+  font-size: 12px;
+}
+
+.hand-piece {
+  position: relative;
+  appearance: none;
+  border: 1px solid var(--board-line);
+  background: var(--board-bg);
+  color: var(--piece-fg);
+  font-family: "Hiragino Mincho ProN", "Noto Serif JP", serif;
+  font-weight: 700;
+  font-size: 18px;
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hand-piece.selected {
+  background: var(--cell-selected);
+  outline: 2px solid var(--accent);
+}
+
+.hand-count {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  background: var(--accent);
+  color: #1a1408;
+  border-radius: 50%;
+  font-size: 10px;
+  width: 15px;
+  height: 15px;
+  line-height: 15px;
+  font-family: system-ui, sans-serif;
+}
+
+/* ---- 成り確認ダイアログ ---- */
+.promotion-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.promotion-dialog {
+  background: var(--bg-panel);
+  border-radius: 12px;
+  padding: 16px 20px;
+  text-align: center;
+}
+
+.promotion-dialog p {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.promotion-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+/* ---- ツールバー / 手順 ---- */
+.toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ply-info {
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin-left: auto;
+}
+
+.edge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edge-list li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.edge-btn {
+  flex: 1;
+  text-align: left;
+  appearance: none;
+  border: 1px solid #3a3a50;
+  background: #262638;
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 15px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.move-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.path-btn {
+  appearance: none;
+  border: 1px solid #3a3a50;
+  background: transparent;
+  color: var(--fg-dim);
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.path-btn.current {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+textarea {
+  width: 100%;
+  background: #141420;
+  color: var(--fg);
+  border: 1px solid #3a3a50;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+/* ---- 出題 ---- */
+.quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.quiz-start-buttons,
+.kif-actions,
+.settings-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.quiz-message {
+  text-align: center;
+  font-size: 15px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--bg-panel);
+}
+
+.quiz-message.wrong {
+  color: var(--danger);
+}
+
+.quiz-message.opponent,
+.quiz-message.lineEnd {
+  color: #6fc46f;
+}
+
+.quiz-message.revealed {
+  color: var(--accent);
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.badge.priority {
+  background: var(--danger);
+  color: #fff;
+}
+
+.summary-score {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.deviation-self {
+  color: var(--danger);
+}
+
+.deviation-opponent {
+  color: var(--accent);
+}
+
+.help-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---- タブバー ---- */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  background: #1a1a28;
+  border-top: 1px solid #2c2c40;
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 100;
+}
+
+.tab {
+  flex: 1;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  padding: 8px 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tab.active {
+  color: var(--accent);
+}
+
+.tab-icon {
+  font-size: 18px;
+  line-height: 1;
+}

@@ -1,0 +1,28 @@
+{
+  "name": "shogi-joseki-trainer",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "角交換四間飛車の定跡練習用PWA",
+  "scripts": {
+    "predev": "node scripts/generate-icons.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/generate-icons.mjs",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tsshogi": "^2.3.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.0",
+    "vite-plugin-pwa": "^1.3.0"
+  }
+}
