@@ -8,7 +8,7 @@
     "predev": "node scripts/generate-icons.mjs && node scripts/copy-engine.mjs",
     "dev": "vite",
     "prebuild": "node scripts/generate-icons.mjs && node scripts/copy-engine.mjs",
-    "build": "tsc -p tsconfig.json && vite build",
+    "build": "tsc -p tsconfig.json && vite build && node scripts/patch-sw-coi.mjs && node scripts/verify-build.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

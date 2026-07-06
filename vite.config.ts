@@ -38,6 +38,16 @@ function injectCsp(): PluginOption {
             attrs: { "http-equiv": "Content-Security-Policy", content: CSP },
             injectTo: "head-prepend",
           },
+          {
+            tag: "script",
+            attrs: { src: "coi-init.js" },
+            injectTo: "head-prepend",
+          },
+          {
+            tag: "script",
+            attrs: { src: "coi-serviceworker.js" },
+            injectTo: "head-prepend",
+          },
         ],
       };
     },
@@ -74,11 +84,13 @@ export default defineConfig({
     injectCsp(),
     coiDevHeaders(),
     VitePWA({
-      strategies: "injectManifest",
-      srcDir: "src",
-      filename: "sw.ts",
       registerType: "autoUpdate",
-      includeAssets: ["icons/icon-192.png", "icons/icon-512.png", "coi-serviceworker.js"],
+      includeAssets: [
+        "icons/icon-192.png",
+        "icons/icon-512.png",
+        "coi-init.js",
+        "coi-serviceworker.js",
+      ],
       manifest: {
         name: "将棋定跡トレーナー",
         short_name: "定跡トレーナー",
@@ -99,11 +111,9 @@ export default defineConfig({
           },
         ],
       },
-      injectManifest: {
+      workbox: {
         globPatterns: ["**/*.{js,css,html,png,svg,woff2,wasm}"],
-      },
-      devOptions: {
-        enabled: false,
+        navigateFallback: "index.html",
       },
     }),
   ],
