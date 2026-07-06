@@ -32,6 +32,11 @@ class ShogiEngine {
     if (this.state === "error") {
       throw new Error(this.errorMessage || "Engine error");
     }
+    if (typeof crossOriginIsolated !== "undefined" && !crossOriginIsolated) {
+      throw new Error(
+        "評価エンジンの準備中です。ページが自動で再読み込みされない場合は、一度更新してください。",
+      );
+    }
     if (!this.initPromise) {
       this.initPromise = this.start();
     }
