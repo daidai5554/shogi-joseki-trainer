@@ -4,16 +4,16 @@ import { EvalGraph } from "../components/EvalGraph";
 import { ShogiBoard } from "../components/ShogiBoard";
 import {
   analyzeGame,
+  AUTO_APPEND_PLIES,
+  autoAppendEntries,
   BLUNDER_THRESHOLD,
   formatUserCp,
-  OPENING_APPEND_PLIES,
-  openingEntries,
   parseGameKif,
   PHASE_LABEL,
   type GameAnalysisResult,
 } from "../lib/gameAnalysis";
 import { analyzeKif, type KifAnalysis } from "../lib/kifCheck";
-import { keyToPosition } from "../lib/shogi";
+import { keyToPosition, STANDARD_ROOT_KEY } from "../lib/shogi";
 import { store, useStoreRevision } from "../lib/store";
 import type { Side } from "../lib/types";
 
@@ -29,6 +29,9 @@ interface EngineAnalysisState {
   result: GameAnalysisResult;
   registered: { added: number; skipped: number };
   appendedPlies: number;
+  appendBookName: string;
+  /** 自分のミス検出により途中で追記を打ち切ったか */
+  appendTruncated: boolean;
   gameLabel: string;
 }
 
@@ -117,15 +120,30 @@ export function KifPage() {
       }
       const registered = store.addProblems(analysis.problems);
       let appendedPlies = 0;
-      if (autoAppend && book.side === userSide) {
-        const entries = openingEntries(parsed);
-        store.appendLine(book.id, entries, false);
-        appendedPlies = entries.length;
+      let appendBookName = "";
+      let appendTruncated = false;
+      if (autoAppend && parsed.steps[0].fromKey === STANDARD_ROOT_KEY) {
+        // 自分の最初のミスの直前までを、手番に合ったブックへ追記する
+        const firstMistakePly =
+          analysis.problems.length > 0
+            ? Math.min(...analysis.problems.map((p) => p.ply))
+            : undefined;
+        const entries = autoAppendEntries(parsed, AUTO_APPEND_PLIES, firstMistakePly);
+        if (entries.length > 0) {
+          const target = store.ensureAppendTarget(userSide);
+          store.appendLine(target.id, entries, false);
+          appendedPlies = entries.length;
+          appendBookName = target.name;
+          appendTruncated =
+            firstMistakePly !== undefined && firstMistakePly - 1 < AUTO_APPEND_PLIES;
+        }
       }
       setEngineResult({
         result: analysis,
         registered,
         appendedPlies,
+        appendBookName,
+        appendTruncated,
         gameLabel: parsed.gameLabel,
       });
     } catch (e) {
@@ -253,7 +271,8 @@ export function KifPage() {
         <h3>エンジン解析(悪手検出)</h3>
         <p className="hint">
           棋譜全体をやねうら王で解析し、自分が形勢を損ねた手を検出して
-          「特訓」タブの問題に自動登録します。序盤の手順を定跡ツリーへ自動追記もできます。
+          「特訓」タブの問題に自動登録します。序盤〜中盤の手順を、
+          手番に合った定跡ツリーへ自動追記することもできます。
         </p>
         <div className="analysis-options">
           <label className="option-row">
@@ -288,13 +307,13 @@ export function KifPage() {
               type="checkbox"
               checked={autoAppend}
               onChange={(e) => setAutoAppend(e.target.checked)}
-              disabled={book.side !== userSide}
             />
             <span>
-              序盤{OPENING_APPEND_PLIES}手を定跡ツリー「{book.name}」へ自動追記
-              {book.side !== userSide && (
-                <span className="hint">(ブックの手番と一致する場合のみ)</span>
-              )}
+              実戦の手順(最大{AUTO_APPEND_PLIES}手)を定跡ツリー
+              「{store.findAppendTarget(userSide)?.name ??
+                (userSide === "black" ? "先手(新規作成)" : "後手(新規作成)")}」
+              へ自動追記
+              <span className="hint">(自分のミスが検出された場合はその直前まで)</span>
             </span>
           </label>
         </div>
@@ -387,7 +406,9 @@ export function KifPage() {
           )}
           {engineResult.appendedPlies > 0 && (
             <p className="done-text">
-              序盤{engineResult.appendedPlies}手を定跡ツリーへ追記しました。
+              {engineResult.appendedPlies}手までを定跡ツリー
+              「{engineResult.appendBookName}」へ追記しました
+              {engineResult.appendTruncated && "(最初のミスの直前まで)"}。
             </p>
           )}
           <p className="hint">

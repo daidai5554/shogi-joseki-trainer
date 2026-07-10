@@ -37,8 +37,8 @@ function makeBook(name: string, side: Side): Book {
 }
 
 function defaultData(): AppData {
-  const b1 = makeBook("角交換四間飛車(先手番)", "black");
-  const b2 = makeBook("角交換四間飛車(後手番)", "white");
+  const b1 = makeBook("先手", "black");
+  const b2 = makeBook("後手", "white");
   return {
     version: 1,
     books: [b1, b2],
@@ -267,6 +267,26 @@ class Store {
     const book = makeBook(name, side);
     this.data.books.push(book);
     this.data.activeBookId = book.id;
+    this.commit();
+    return book;
+  }
+
+  /**
+   * 棋譜自動追記の対象ブックを探す。
+   * 手番が一致するアクティブブック → 同じ手番の先頭ブック の順で選ぶ。
+   */
+  findAppendTarget(side: Side): Book | null {
+    const active = this.activeBook;
+    if (active && active.side === side) return active;
+    return this.data.books.find((b) => b.side === side) ?? null;
+  }
+
+  /** 自動追記先ブックを取得し、なければ「先手」「後手」ブックを作成する(アクティブは変えない) */
+  ensureAppendTarget(side: Side): Book {
+    const existing = this.findAppendTarget(side);
+    if (existing) return existing;
+    const book = makeBook(side === "black" ? "先手" : "後手", side);
+    this.data.books.push(book);
     this.commit();
     return book;
   }

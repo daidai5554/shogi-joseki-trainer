@@ -26,8 +26,8 @@ const ACCEPT_MARGIN = 100;
 const OPENING_MAX_PLY = 32;
 /** 読み筋の表示手数 */
 const PV_LABEL_MOVES = 6;
-/** 定跡ツリーへ自動追記する序盤の手数 */
-export const OPENING_APPEND_PLIES = 24;
+/** 定跡ツリーへ自動追記する最大手数(序盤〜中盤) */
+export const AUTO_APPEND_PLIES = 60;
 /** 詰みスコアをcpへ変換する際の基準値 */
 const MATE_CP = 30000;
 
@@ -107,10 +107,18 @@ function pvToLabel(fromKey: string, pv: string, maxMoves: number): string {
   }
 }
 
-/** 序盤の手順を定跡ツリー追記用エントリに変換する */
-export function openingEntries(parsed: ParsedGame, maxPly = OPENING_APPEND_PLIES): JosekiEdge2[] {
+/**
+ * 実戦の手順を定跡ツリー追記用エントリに変換する。
+ * 自分の悪手を定跡化しないよう、stopBeforePly(最初のミスの手数)以降は含めない。
+ */
+export function autoAppendEntries(
+  parsed: ParsedGame,
+  maxPly = AUTO_APPEND_PLIES,
+  stopBeforePly?: number,
+): JosekiEdge2[] {
+  const limit = stopBeforePly !== undefined ? Math.min(maxPly, stopBeforePly - 1) : maxPly;
   return parsed.steps
-    .filter((s) => s.ply <= maxPly)
+    .filter((s) => s.ply <= limit)
     .map((s) => ({
       fromKey: s.fromKey,
       usi: s.move.usi,
