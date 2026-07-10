@@ -27,17 +27,5 @@ function copyEngine() {
   console.log("Engine files copied to public/engine/");
 }
 
-function copyCoi() {
-  const from = join(root, "node_modules", "coi-serviceworker", "coi-serviceworker.js");
-  const dest = join(publicDir, "coi-serviceworker.js");
-  if (!existsSync(from)) {
-    console.warn("coi-serviceworker not found. Run: npm install");
-    return;
-  }
-  cpSync(from, dest);
-  console.log("coi-serviceworker copied to public/");
-}
-
 copyEngine();
-copyCoi();
 

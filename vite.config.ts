@@ -12,17 +12,16 @@ const COI_HEADERS: Record<string, string> = {
 // (開発サーバーは HMR 用のインラインスクリプトを使うため対象外)
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
   "connect-src 'self'",
   "manifest-src 'self'",
-  "worker-src 'self'",
+  "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",
-  "frame-ancestors 'none'",
 ].join("; ");
 
 function injectCsp(): PluginOption {
@@ -38,16 +37,6 @@ function injectCsp(): PluginOption {
             attrs: { "http-equiv": "Content-Security-Policy", content: CSP },
             injectTo: "head-prepend",
           },
-          {
-            tag: "script",
-            attrs: { src: "coi-init.js" },
-            injectTo: "head-prepend",
-          },
-          {
-            tag: "script",
-            attrs: { src: "coi-serviceworker.js" },
-            injectTo: "head-prepend",
-          },
         ],
       };
     },
@@ -56,12 +45,15 @@ function injectCsp(): PluginOption {
 
 function coiDevHeaders(): PluginOption {
   const applyHeaders = (
-    _req: unknown,
+    req: { url?: string },
     res: { setHeader: (k: string, v: string) => void },
     next: () => void,
   ) => {
     for (const [key, value] of Object.entries(COI_HEADERS)) {
       res.setHeader(key, value);
+    }
+    if (req.url?.match(/\.(js|wasm|mjs)(\?|$)/)) {
+      res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
     }
     next();
   };
@@ -84,13 +76,11 @@ export default defineConfig({
     injectCsp(),
     coiDevHeaders(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.js",
       registerType: "autoUpdate",
-      includeAssets: [
-        "icons/icon-192.png",
-        "icons/icon-512.png",
-        "coi-init.js",
-        "coi-serviceworker.js",
-      ],
+      includeAssets: ["icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
         name: "将棋定跡トレーナー",
         short_name: "定跡トレーナー",
@@ -111,9 +101,8 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,png,svg,woff2,wasm}"],
-        navigateFallback: "index.html",
       },
     }),
   ],

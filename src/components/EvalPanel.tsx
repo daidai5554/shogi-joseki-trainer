@@ -81,7 +81,20 @@ export function EvalPanel({
           {turnLabel(sfenKey)}の評価(やねうら王・端末内計算)。▲は自分有利、△は不利。
         </p>
       )}
-      {error && <p className="error-text">{error}</p>}
+      {error && (
+        <>
+          <p className="error-text">{error}</p>
+          {typeof crossOriginIsolated !== "undefined" && !crossOriginIsolated && (
+            <button
+              type="button"
+              className="btn small"
+              onClick={() => window.location.reload()}
+            >
+              再読み込みして評価を有効化
+            </button>
+          )}
+        </>
+      )}
       {live && !compact && (
         <button type="button" className="btn small" onClick={handleSave}>
           この評価を局面に保存

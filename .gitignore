@@ -4,6 +4,5 @@ dev-dist
 *.local
 .DS_Store
 public/engine/yaneuraou.k-p.*
-public/coi-serviceworker.js
 # prebuild/predev で自動生成される
 public/icons/

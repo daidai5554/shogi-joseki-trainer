@@ -75,10 +75,17 @@ function parseInfo(infoLine) {
 
 async function initEngine() {
   importScripts("yaneuraou.k-p.js");
-  if (typeof YaneuraOu_K_P !== "function") {
+  const factory = self.YaneuraOu_K_P;
+  if (typeof factory !== "function") {
     throw new Error("YaneuraOu load failed");
   }
-  engine = await YaneuraOu_K_P();
+  const engineUrl = new URL("yaneuraou.k-p.js", self.location.href).href;
+  engine = await factory({
+    locateFile: (name) => new URL(name, self.location.href).href,
+    mainScriptUrlOrBlob: engineUrl,
+    print: () => {},
+    printErr: (line) => console.warn("[yaneuraou]", line),
+  });
   engine.addMessageListener(onEngineLine);
   await postEngineWait("usi", "usiok");
   postEngine("setoption name USI_Hash value 64");
