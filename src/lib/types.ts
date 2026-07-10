@@ -49,10 +49,49 @@ export interface SrsCard {
   priority: boolean;
 }
 
+/** 局面のフェーズ(簡易判定) */
+export type GamePhase = "opening" | "middle" | "endgame";
+
+/**
+ * 実戦棋譜のエンジン解析から自動生成される「特訓問題」。
+ * 自分が形勢を損ねた局面で、最善手を指せるかを問う。
+ */
+export interface DrillProblem {
+  id: string;
+  createdAt: number;
+  /** 出題局面(自分の手番)の正規化SFENキー */
+  sfenKey: string;
+  userSide: Side;
+  /** 実戦での手数(この局面から指した手が何手目か) */
+  ply: number;
+  phase: GamePhase;
+  /** 実戦で指してしまった手 */
+  playedUsi: string;
+  playedLabel: string;
+  /** エンジンの最善手 */
+  bestUsi: string;
+  bestLabel: string;
+  /** 正解として許容する手(最善手を含む、最善から差が小さい候補) */
+  acceptedUsis: string[];
+  /** 最善を指した場合の評価(自分視点cp) */
+  evalBest: number;
+  /** 実戦の手を指した後の評価(自分視点cp) */
+  evalPlayed: number;
+  /** 損失(cp) */
+  lossCp: number;
+  /** 最善の読み筋(日本語表記) */
+  pvLabel: string;
+  /** 出典対局の表示名 */
+  gameLabel: string;
+  card: SrsCard;
+}
+
 export interface AppData {
   version: 1;
   books: Book[];
   /** `${bookId}|${sfenKey}` → カード */
   cards: Record<string, SrsCard>;
   activeBookId: string | null;
+  /** 実戦棋譜から自動生成した特訓問題 */
+  problems: DrillProblem[];
 }

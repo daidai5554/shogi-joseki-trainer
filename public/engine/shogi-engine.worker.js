@@ -7,6 +7,9 @@ let busy = false;
 /** @type {Array<{ resolve: (v: unknown) => void; reject: (e: Error) => void; waitToken: string; gather: string[] }>} */
 const waitQueue = [];
 const rCache = {};
+/** 探索中のinfo行を全て収集するバッファ(null=収集しない) */
+let infoLines = null;
+let currentMultiPv = 1;
 
 function postEngine(command) {
   engine.postMessage(command);
@@ -24,6 +27,9 @@ function postEngineWait(command, waitToken, gather = []) {
 }
 
 function onEngineLine(line) {
+  if (infoLines !== null && line.startsWith("info ")) {
+    infoLines.push(line);
+  }
   for (const item of waitQueue) {
     if (line.startsWith(item.waitToken)) {
       rCache[item.waitToken] = line;
@@ -50,12 +56,15 @@ function pickGather(keys) {
 }
 
 function parseInfo(infoLine) {
-  /** @type {{ cp?: number; mate?: number; depth?: number; pv?: string }} */
+  /** @type {{ cp?: number; mate?: number; depth?: number; pv?: string; multipv?: number }} */
   const result = {};
   const tokens = infoLine.split(/\s+/);
   for (let i = 0; i < tokens.length; i++) {
     if (tokens[i] === "depth" && tokens[i + 1]) {
       result.depth = Number(tokens[i + 1]);
+    }
+    if (tokens[i] === "multipv" && tokens[i + 1]) {
+      result.multipv = Number(tokens[i + 1]);
     }
     if (tokens[i] === "score") {
       if (tokens[i + 1] === "cp" && tokens[i + 2]) {
@@ -95,7 +104,11 @@ async function initEngine() {
   ready = true;
 }
 
-async function evaluateSfen(sfenKey, movetime) {
+/**
+ * 局面を解析して候補手(MultiPV)を返す。
+ * cp/mate は USI 同様、手番側から見た値。
+ */
+async function analyzeSfen(sfenKey, movetime, multipv) {
   if (!ready || !engine) {
     throw new Error("Engine not ready");
   }
@@ -104,21 +117,38 @@ async function evaluateSfen(sfenKey, movetime) {
   }
   busy = true;
   try {
+    if (multipv !== currentMultiPv) {
+      postEngine(`setoption name MultiPV value ${multipv}`);
+      currentMultiPv = multipv;
+    }
     postEngine(`position sfen ${sfenKey} 1`);
-    const res = await postEngineWait(`go movetime ${movetime}`, "bestmove", ["info"]);
-    const infoLines = (res.info || "").split("\n").filter((l) => l.startsWith("info"));
-    let best = {};
-    for (const line of infoLines) {
+    infoLines = [];
+    const res = await postEngineWait(`go movetime ${movetime}`, "bestmove");
+    const lines = infoLines;
+    infoLines = null;
+    const bestToken = String(res.bestmove || "").split(/\s+/)[1] || "";
+    const bestUsi = bestToken && bestToken !== "resign" && bestToken !== "win" ? bestToken : null;
+    // multipvインデックスごとに最後(=最深)のinfo行を採用
+    const byIndex = new Map();
+    for (const line of lines) {
       const parsed = parseInfo(line);
-      if (parsed.depth !== undefined) {
-        best = parsed;
-      }
+      if (parsed.pv === undefined) continue;
+      if (parsed.cp === undefined && parsed.mate === undefined) continue;
+      byIndex.set(parsed.multipv ?? 1, parsed);
     }
-    if (!best.depth && res.info) {
-      best = parseInfo(String(res.info).split("\n").pop() || "");
-    }
-    return best;
+    const candidates = [...byIndex.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, p]) => ({
+        usi: (p.pv || "").split(/\s+/)[0] || "",
+        cp: p.cp ?? null,
+        mate: p.mate ?? null,
+        depth: p.depth ?? null,
+        pv: p.pv || "",
+      }))
+      .filter((c) => c.usi.length > 0);
+    return { bestUsi, candidates };
   } finally {
+    infoLines = null;
     busy = false;
   }
 }
@@ -132,14 +162,25 @@ self.onmessage = async (event) => {
       return;
     }
     if (msg.type === "eval") {
-      const result = await evaluateSfen(msg.sfenKey, msg.movetime ?? 800);
+      const result = await analyzeSfen(msg.sfenKey, msg.movetime ?? 800, 1);
+      const top = result.candidates[0] || {};
       self.postMessage({
         type: "evalResult",
         id: msg.id,
-        cp: result.cp ?? null,
-        mate: result.mate ?? null,
-        depth: result.depth ?? null,
-        pv: result.pv ?? "",
+        cp: top.cp ?? null,
+        mate: top.mate ?? null,
+        depth: top.depth ?? null,
+        pv: top.pv ?? "",
+      });
+      return;
+    }
+    if (msg.type === "analyze") {
+      const result = await analyzeSfen(msg.sfenKey, msg.movetime ?? 800, msg.multipv ?? 3);
+      self.postMessage({
+        type: "analyzeResult",
+        id: msg.id,
+        bestUsi: result.bestUsi,
+        candidates: result.candidates,
       });
       return;
     }

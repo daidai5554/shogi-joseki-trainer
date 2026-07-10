@@ -1,8 +1,23 @@
 import type { EvalResult } from "./evalFormat";
 
+/** MultiPV解析の候補手。cp/mateはUSI同様、手番側から見た値 */
+export interface AnalyzeCandidate {
+  usi: string;
+  cp: number | null;
+  mate: number | null;
+  depth: number | null;
+  pv: string;
+}
+
+export interface AnalyzeResult {
+  bestUsi: string | null;
+  candidates: AnalyzeCandidate[];
+}
+
 type WorkerOut =
   | { type: "ready" }
   | { type: "evalResult"; id: number; cp: number | null; mate: number | null; depth: number | null; pv: string }
+  | { type: "analyzeResult"; id: number; bestUsi: string | null; candidates: AnalyzeCandidate[] }
   | { type: "error"; id?: number; message: string }
   | { type: "stopped" };
 
@@ -15,7 +30,7 @@ class ShogiEngine {
   private nextId = 1;
   private pending = new Map<
     number,
-    { resolve: (r: EvalResult) => void; reject: (e: Error) => void }
+    { resolve: (r: unknown) => void; reject: (e: Error) => void }
   >();
   private initPromise: Promise<void> | null = null;
 
@@ -83,6 +98,14 @@ class ShogiEngine {
           }
           return;
         }
+        if (msg.type === "analyzeResult") {
+          const p = this.pending.get(msg.id);
+          if (p) {
+            this.pending.delete(msg.id);
+            p.resolve({ bestUsi: msg.bestUsi, candidates: msg.candidates });
+          }
+          return;
+        }
         if (msg.type === "error") {
           if (msg.id !== undefined) {
             const p = this.pending.get(msg.id);
@@ -110,9 +133,9 @@ class ShogiEngine {
     });
   }
 
-  evaluate(sfenKey: string, movetime = 800): Promise<EvalResult> {
+  private request<T>(message: Record<string, unknown>): Promise<T> {
     const id = this.nextId++;
-    return new Promise((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       void (async () => {
         try {
           await this.ensureReady();
@@ -120,13 +143,22 @@ class ShogiEngine {
             reject(new Error("Engine not available"));
             return;
           }
-          this.pending.set(id, { resolve, reject });
-          this.worker.postMessage({ type: "eval", id, sfenKey, movetime });
+          this.pending.set(id, { resolve: (r) => resolve(r as T), reject });
+          this.worker.postMessage({ ...message, id });
         } catch (e) {
           reject(e instanceof Error ? e : new Error(String(e)));
         }
       })();
     });
+  }
+
+  evaluate(sfenKey: string, movetime = 800): Promise<EvalResult> {
+    return this.request<EvalResult>({ type: "eval", sfenKey, movetime });
+  }
+
+  /** MultiPVで候補手を解析する(棋譜解析用) */
+  analyze(sfenKey: string, movetime = 800, multipv = 3): Promise<AnalyzeResult> {
+    return this.request<AnalyzeResult>({ type: "analyze", sfenKey, movetime, multipv });
   }
 
   stop(): void {

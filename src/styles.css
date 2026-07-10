@@ -566,3 +566,150 @@ textarea {
 .eval-hint {
   margin: 4px 0 0;
 }
+
+/* ---- エンジン解析(棋譜タブ) ---- */
+.analysis-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.option-row.checkbox {
+  justify-content: flex-start;
+}
+
+.option-row select {
+  background: #141420;
+  color: var(--fg);
+  border: 1px solid #3a3a50;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+.side-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.analysis-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: #141420;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.mistake-list {
+  margin: 0;
+  padding-left: 4px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.mistake-list .badge {
+  margin-left: 0;
+  margin-right: 4px;
+}
+
+.badge.blunder {
+  background: var(--danger);
+  color: #fff;
+}
+
+.badge.dubious {
+  background: #b8860b;
+  color: #fff;
+}
+
+.badge.phase {
+  background: #2c2c40;
+  color: var(--fg-dim);
+}
+
+/* ---- 形勢グラフ ---- */
+.eval-graph svg {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.graph-good-bg {
+  fill: rgba(111, 196, 111, 0.08);
+}
+
+.graph-bad-bg {
+  fill: rgba(224, 90, 90, 0.08);
+}
+
+.graph-midline {
+  stroke: #3a3a50;
+  stroke-width: 1;
+}
+
+.graph-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.graph-mistake {
+  fill: var(--danger);
+}
+
+/* ---- 特訓タブ ---- */
+.phase-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+
+.chip {
+  appearance: none;
+  border: 1px solid #3a3a50;
+  background: #141420;
+  color: var(--fg);
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip-count {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+
+.drill-feedback p {
+  margin: 4px 0;
+}

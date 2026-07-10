@@ -3,7 +3,16 @@ import { Position } from "tsshogi";
 import { createKakugawariPresetBooks } from "./presets/kakugawariShiken";
 import { STANDARD_ROOT_KEY, sideToColor, turnOfKey } from "./shogi";
 import { isDue, newCard, rateCard } from "./srs";
-import type { AppData, Book, JosekiEdge, JosekiNode, Side, SrsCard } from "./types";
+import type {
+  AppData,
+  Book,
+  DrillProblem,
+  GamePhase,
+  JosekiEdge,
+  JosekiNode,
+  Side,
+  SrsCard,
+} from "./types";
 
 const STORAGE_KEY = "shogi-joseki-trainer/v1";
 const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
@@ -35,6 +44,7 @@ function defaultData(): AppData {
     books: [b1, b2],
     cards: {},
     activeBookId: b1.id,
+    problems: [],
   };
 }
 
@@ -100,6 +110,58 @@ function sanitizeCard(v: unknown): SrsCard | null {
   };
 }
 
+const MAX_PROBLEMS = 2000;
+
+function sanitizeProblem(v: unknown): DrillProblem | null {
+  if (!isRecord(v)) return null;
+  const num = (x: unknown, def: number) => (typeof x === "number" && isFinite(x) ? x : def);
+  const str = (x: unknown, max: number): string | null =>
+    typeof x === "string" && x.length > 0 && x.length <= max ? x : null;
+  const id = str(v.id, 100);
+  const sfenKey = typeof v.sfenKey === "string" && isValidKey(v.sfenKey) ? v.sfenKey : null;
+  const userSide = v.userSide === "black" || v.userSide === "white" ? v.userSide : null;
+  const phase =
+    v.phase === "opening" || v.phase === "middle" || v.phase === "endgame" ? v.phase : null;
+  const playedUsi = str(v.playedUsi, 8);
+  const playedLabel = str(v.playedLabel, 30);
+  const bestUsi = str(v.bestUsi, 8);
+  const bestLabel = str(v.bestLabel, 30);
+  if (
+    !id || !sfenKey || !userSide || !phase ||
+    !playedUsi || !playedLabel || !bestUsi || !bestLabel
+  ) {
+    return null;
+  }
+  let acceptedUsis = Array.isArray(v.acceptedUsis)
+    ? v.acceptedUsis
+        .filter((u): u is string => typeof u === "string" && u.length > 0 && u.length <= 8)
+        .slice(0, 10)
+    : [];
+  if (!acceptedUsis.includes(bestUsi)) {
+    acceptedUsis = [bestUsi, ...acceptedUsis];
+  }
+  const clampCp = (x: number) => Math.max(-30000, Math.min(30000, x));
+  return {
+    id,
+    createdAt: Math.max(0, num(v.createdAt, 0)),
+    sfenKey,
+    userSide,
+    ply: Math.max(1, Math.floor(num(v.ply, 1))),
+    phase,
+    playedUsi,
+    playedLabel,
+    bestUsi,
+    bestLabel,
+    acceptedUsis,
+    evalBest: clampCp(num(v.evalBest, 0)),
+    evalPlayed: clampCp(num(v.evalPlayed, 0)),
+    lossCp: Math.max(0, clampCp(num(v.lossCp, 0))),
+    pvLabel: typeof v.pvLabel === "string" ? v.pvLabel.slice(0, 300) : "",
+    gameLabel: typeof v.gameLabel === "string" ? v.gameLabel.slice(0, 100) : "",
+    card: sanitizeCard(v.card) ?? newCard(0),
+  };
+}
+
 export function parseImportedData(text: string): AppData | Error {
   if (text.length > MAX_IMPORT_BYTES) {
     return new Error("ファイルが大きすぎます");
@@ -132,7 +194,13 @@ export function parseImportedData(text: string): AppData | Error {
     typeof json.activeBookId === "string" && books.some((b) => b.id === json.activeBookId)
       ? json.activeBookId
       : books[0].id;
-  return { version: 1, books, cards, activeBookId };
+  const problems = Array.isArray(json.problems)
+    ? json.problems
+        .map(sanitizeProblem)
+        .filter((p): p is DrillProblem => p !== null)
+        .slice(0, MAX_PROBLEMS)
+    : [];
+  return { version: 1, books, cards, activeBookId, problems };
 }
 
 // ---- ストア本体 ----
@@ -427,6 +495,88 @@ class Store {
     return { due, priority, total: keys.length };
   }
 
+  // ---- 特訓問題(実戦棋譜からの自動生成) ----
+
+  get problems(): DrillProblem[] {
+    return this.data.problems;
+  }
+
+  /**
+   * 解析で検出した問題を登録する。同一局面+同一悪手は重複登録しない。
+   * 新規問題は最優先(priority)で出題される。
+   */
+  addProblems(list: NewProblem[]): { added: number; skipped: number } {
+    const existing = new Set(
+      this.data.problems.map((p) => `${p.sfenKey}|${p.playedUsi}`),
+    );
+    const now = Date.now();
+    let added = 0;
+    let skipped = 0;
+    for (const p of list) {
+      const dedupeKey = `${p.sfenKey}|${p.playedUsi}`;
+      if (existing.has(dedupeKey)) {
+        skipped++;
+        continue;
+      }
+      existing.add(dedupeKey);
+      const card = newCard(now);
+      card.priority = true;
+      this.data.problems.push({ ...p, id: genId(), createdAt: now, card });
+      added++;
+    }
+    if (this.data.problems.length > MAX_PROBLEMS) {
+      this.data.problems = this.data.problems.slice(-MAX_PROBLEMS);
+    }
+    if (added > 0) this.commit();
+    return { added, skipped };
+  }
+
+  deleteProblem(id: string): void {
+    this.data.problems = this.data.problems.filter((p) => p.id !== id);
+    this.commit();
+  }
+
+  rateProblem(id: string, quality: number, now = Date.now()): void {
+    const problem = this.data.problems.find((p) => p.id === id);
+    if (!problem) return;
+    problem.card = rateCard(problem.card, quality, now);
+    this.commit();
+  }
+
+  listProblems(phase: GamePhase | "all"): DrillProblem[] {
+    return phase === "all"
+      ? this.data.problems
+      : this.data.problems.filter((p) => p.phase === phase);
+  }
+
+  problemStats(
+    phase: GamePhase | "all",
+    now = Date.now(),
+  ): { due: number; total: number } {
+    const list = this.listProblems(phase);
+    return {
+      due: list.filter((p) => isDue(p.card, now)).length,
+      total: list.length,
+    };
+  }
+
+  /** 特訓の出題キュー(期限到来を優先度→期限順、残りは損失の大きい順) */
+  buildProblemQueue(
+    phase: GamePhase | "all",
+    limit: number,
+    now = Date.now(),
+  ): DrillProblem[] {
+    const list = this.listProblems(phase);
+    const due = list.filter((p) => isDue(p.card, now));
+    due.sort((a, b) => {
+      if (a.card.priority !== b.card.priority) return a.card.priority ? -1 : 1;
+      return a.card.due - b.card.due;
+    });
+    const rest = list.filter((p) => !isDue(p.card, now));
+    rest.sort((a, b) => b.lossCp - a.lossCp);
+    return [...due, ...rest].slice(0, limit);
+  }
+
   // ---- エクスポート / インポート ----
 
   exportJson(): string {
@@ -448,6 +598,9 @@ class Store {
 export interface JosekiEdge2 extends JosekiEdge {
   fromKey: string;
 }
+
+/** addProblems 用(id/カード/作成日時はストアが付与する) */
+export type NewProblem = Omit<DrillProblem, "id" | "card" | "createdAt">;
 
 export const store = new Store();
 

@@ -3,12 +3,14 @@ import { EditorPage } from "./pages/EditorPage";
 import { KifPage } from "./pages/KifPage";
 import { QuizPage } from "./pages/QuizPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TrainingPage } from "./pages/TrainingPage";
 
-type Tab = "editor" | "quiz" | "kif" | "settings";
+type Tab = "editor" | "quiz" | "training" | "kif" | "settings";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "editor", label: "定跡", icon: "☗" },
   { id: "quiz", label: "出題", icon: "?" },
+  { id: "training", label: "特訓", icon: "🔥" },
   { id: "kif", label: "棋譜", icon: "📋" },
   { id: "settings", label: "設定", icon: "⚙" },
 ];
@@ -24,6 +26,7 @@ export default function App() {
       <main>
         {tab === "editor" && <EditorPage />}
         {tab === "quiz" && <QuizPage />}
+        {tab === "training" && <TrainingPage />}
         {tab === "kif" && <KifPage />}
         {tab === "settings" && <SettingsPage />}
       </main>
