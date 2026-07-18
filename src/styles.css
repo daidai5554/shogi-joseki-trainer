@@ -567,6 +567,74 @@ textarea {
   margin: 4px 0 0;
 }
 
+.engine-candidates {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #3a3a50;
+}
+
+.engine-candidates-title {
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.engine-candidates ol {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.engine-candidates li {
+  display: grid;
+  grid-template-columns: 22px minmax(88px, 1fr) 64px auto auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+}
+
+.candidate-rank {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.candidate-move {
+  font-weight: 700;
+}
+
+.candidate-eval {
+  color: var(--accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.candidate-depth {
+  color: var(--fg-dim);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+@media (max-width: 390px) {
+  .engine-candidates li {
+    grid-template-columns: 20px minmax(78px, 1fr) 58px auto;
+  }
+
+  .candidate-depth {
+    display: none;
+  }
+}
+
 /* ---- エンジン解析(棋譜タブ) ---- */
 .analysis-options {
   display: flex;

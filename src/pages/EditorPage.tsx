@@ -55,6 +55,12 @@ export function EditorPage() {
     setPath([...path, move.usi]);
   };
 
+  const handleEngineCandidate = (usi: string) => {
+    const move = replay.pos.createMoveByUSI(usi);
+    if (!move || !replay.pos.isValidMove(move)) return;
+    handleMove(move);
+  };
+
   const advance = (usi: string) => setPath([...path, usi]);
 
   const handleRemoveEdge = (usi: string, label: string) => {
@@ -81,6 +87,8 @@ export function EditorPage() {
         userSide={book.side}
         cachedCp={node?.evalCp}
         cachedMate={node?.evalMate}
+        registeredUsis={node?.moves.map((edge) => edge.usi)}
+        onSelectCandidate={handleEngineCandidate}
       />
       <div className="toolbar">
         <button type="button" className="btn" disabled={path.length === 0} onClick={() => setPath([])}>
