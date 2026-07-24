@@ -131,6 +131,11 @@ export function autoAppendEntries(
 export interface EvalPoint {
   ply: number;
   cpUser: number;
+  /** この評価点に対応する局面 */
+  sfenKey: string;
+  /** この局面になる直前に指された手 */
+  lastMoveUsi?: string;
+  lastMoveLabel?: string;
 }
 
 export interface GameAnalysisResult {
@@ -185,7 +190,7 @@ export async function analyzeGame(opts: AnalyzeGameOptions): Promise<GameAnalysi
     onProgress?.(i + 1, total);
   }
 
-  const problems: NewProblem[] = [];
+  const detectedProblems: NewProblem[] = [];
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
     if (colorToSide(step.move.color) !== userSide) continue;
@@ -200,7 +205,7 @@ export async function analyzeGame(opts: AnalyzeGameOptions): Promise<GameAnalysi
       .map((c) => c.usi);
     const bestMove = keyToPosition(step.fromKey).createMoveByUSI(best.usi);
     if (!bestMove) continue;
-    problems.push({
+    detectedProblems.push({
       sfenKey: step.fromKey,
       userSide,
       ply: step.ply,
@@ -218,7 +223,27 @@ export async function analyzeGame(opts: AnalyzeGameOptions): Promise<GameAnalysi
     });
   }
 
-  const evalPoints: EvalPoint[] = cpUser.map((cp, i) => ({ ply: i, cpUser: cp }));
+  // 1局につき各フェーズ最大1問。悪手があれば最大の悪手、
+  // 悪手がなければ最大の疑問手を残す(いずれも損失最大の手に一致する)。
+  const bestByPhase = new Map<GamePhase, NewProblem>();
+  for (const problem of detectedProblems) {
+    const current = bestByPhase.get(problem.phase);
+    if (!current || problem.lossCp > current.lossCp) {
+      bestByPhase.set(problem.phase, problem);
+    }
+  }
+  const phaseOrder: GamePhase[] = ["opening", "middle", "endgame"];
+  const problems = phaseOrder
+    .map((phase) => bestByPhase.get(phase))
+    .filter((problem): problem is NewProblem => problem !== undefined);
+
+  const evalPoints: EvalPoint[] = cpUser.map((cp, i) => ({
+    ply: i,
+    cpUser: cp,
+    sfenKey: keys[i],
+    lastMoveUsi: i > 0 ? steps[i - 1].move.usi : undefined,
+    lastMoveLabel: i > 0 ? moveLabel(steps[i - 1].move) : undefined,
+  }));
   return { totalPlies: steps.length, evalPoints, problems, cancelled: false };
 }
 

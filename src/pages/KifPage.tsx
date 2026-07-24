@@ -13,7 +13,7 @@ import {
   type GameAnalysisResult,
 } from "../lib/gameAnalysis";
 import { analyzeKif, type KifAnalysis } from "../lib/kifCheck";
-import { keyToPosition, STANDARD_ROOT_KEY } from "../lib/shogi";
+import { keyToPosition, STANDARD_ROOT_KEY, usiToDestination } from "../lib/shogi";
 import { store, useStoreRevision } from "../lib/store";
 import type { Side } from "../lib/types";
 
@@ -51,6 +51,7 @@ export function KifPage() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [engineError, setEngineError] = useState<string | null>(null);
   const [engineResult, setEngineResult] = useState<EngineAnalysisState | null>(null);
+  const [selectedAnalysisPly, setSelectedAnalysisPly] = useState(0);
   const cancelRef = useRef(false);
 
   useEffect(() => {
@@ -99,6 +100,7 @@ export function KifPage() {
   const handleEngineAnalyze = async () => {
     setEngineError(null);
     setEngineResult(null);
+    setSelectedAnalysisPly(0);
     const parsed = parseGameKif(kifText);
     if (parsed instanceof Error) {
       setEngineError(parsed.message);
@@ -146,6 +148,7 @@ export function KifPage() {
         appendTruncated,
         gameLabel: parsed.gameLabel,
       });
+      setSelectedAnalysisPly(analysis.problems[0]?.ply ?? 0);
     } catch (e) {
       setEngineError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -159,6 +162,12 @@ export function KifPage() {
     ? Math.ceil(((progress.total - progress.done) * SPEED_MOVETIME[speed]) / 1000)
     : 0;
   const mistakes = engineResult?.result.problems ?? [];
+  const evalPoints = engineResult?.result.evalPoints ?? [];
+  const selectedEvalPoint =
+    evalPoints.find((point) => point.ply === selectedAnalysisPly) ?? evalPoints[0];
+  const selectedAnalysisPosition = selectedEvalPoint
+    ? keyToPosition(selectedEvalPoint.sfenKey)
+    : null;
 
   return (
     <div className="page">
@@ -375,7 +384,45 @@ export function KifPage() {
           <EvalGraph
             points={engineResult.result.evalPoints}
             mistakePlies={mistakes.map((m) => m.ply)}
+            selectedPly={selectedAnalysisPly}
+            onSelectPly={setSelectedAnalysisPly}
           />
+          {selectedEvalPoint && selectedAnalysisPosition && (
+            <div className="analysis-position">
+              <div className="analysis-position-header">
+                <button
+                  type="button"
+                  className="btn small"
+                  disabled={selectedEvalPoint.ply === 0}
+                  onClick={() => setSelectedAnalysisPly(selectedEvalPoint.ply - 1)}
+                >
+                  ◀ 前
+                </button>
+                <strong>
+                  {selectedEvalPoint.ply === 0
+                    ? "開始局面"
+                    : `${selectedEvalPoint.ply}手目 ${selectedEvalPoint.lastMoveLabel ?? ""}`}
+                </strong>
+                <span className="analysis-position-eval">
+                  評価 {formatUserCp(selectedEvalPoint.cpUser)}
+                </span>
+                <button
+                  type="button"
+                  className="btn small"
+                  disabled={selectedEvalPoint.ply >= engineResult.result.totalPlies}
+                  onClick={() => setSelectedAnalysisPly(selectedEvalPoint.ply + 1)}
+                >
+                  次 ▶
+                </button>
+              </div>
+              <ShogiBoard
+                position={selectedAnalysisPosition}
+                flipped={userSide === "white"}
+                interactive={false}
+                lastMoveTo={usiToDestination(selectedEvalPoint.lastMoveUsi ?? "")}
+              />
+            </div>
+          )}
           {mistakes.length === 0 ? (
             <p>大きなミスは検出されませんでした。好局です!</p>
           ) : (
@@ -389,7 +436,18 @@ export function KifPage() {
               </p>
               <ul className="mistake-list">
                 {mistakes.map((m) => (
-                  <li key={`${m.ply}-${m.playedUsi}`}>
+                  <li
+                    key={`${m.ply}-${m.playedUsi}`}
+                    className={selectedAnalysisPly === m.ply ? "selected" : ""}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedAnalysisPly(m.ply)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        setSelectedAnalysisPly(m.ply);
+                      }
+                    }}
+                  >
                     <span
                       className={`badge ${m.lossCp >= BLUNDER_THRESHOLD ? "blunder" : "dubious"}`}
                     >

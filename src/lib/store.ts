@@ -162,6 +162,28 @@ function sanitizeProblem(v: unknown): DrillProblem | null {
   };
 }
 
+/**
+ * 旧バージョンで同じ解析から複数登録された問題を整理する。
+ * addProblemsは1回の解析結果へ同じcreatedAtを付けるため、
+ * 対局表示名・登録時刻・手番・フェーズを解析単位として損失最大の1問だけ残す。
+ */
+function limitProblemsPerGamePhase(problems: DrillProblem[]): DrillProblem[] {
+  const best = new Map<string, DrillProblem>();
+  for (const problem of problems) {
+    const key = [
+      problem.createdAt,
+      problem.gameLabel,
+      problem.userSide,
+      problem.phase,
+    ].join("|");
+    const current = best.get(key);
+    if (!current || problem.lossCp > current.lossCp) {
+      best.set(key, problem);
+    }
+  }
+  return [...best.values()].sort((a, b) => a.createdAt - b.createdAt);
+}
+
 export function parseImportedData(text: string): AppData | Error {
   if (text.length > MAX_IMPORT_BYTES) {
     return new Error("ファイルが大きすぎます");
@@ -195,10 +217,11 @@ export function parseImportedData(text: string): AppData | Error {
       ? json.activeBookId
       : books[0].id;
   const problems = Array.isArray(json.problems)
-    ? json.problems
-        .map(sanitizeProblem)
-        .filter((p): p is DrillProblem => p !== null)
-        .slice(0, MAX_PROBLEMS)
+    ? limitProblemsPerGamePhase(
+        json.problems
+          .map(sanitizeProblem)
+          .filter((p): p is DrillProblem => p !== null),
+      ).slice(0, MAX_PROBLEMS)
     : [];
   return { version: 1, books, cards, activeBookId, problems };
 }

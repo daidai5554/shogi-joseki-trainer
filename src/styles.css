@@ -178,7 +178,9 @@ body {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(9, 1fr);
   aspect-ratio: 1;
+  min-width: 0;
   background: var(--board-bg);
   border: 2px solid var(--board-line);
 }
@@ -195,6 +197,8 @@ body {
 
 .cell {
   position: relative;
+  min-width: 0;
+  min-height: 0;
   border: 0.5px solid var(--board-line);
   display: flex;
   align-items: center;
@@ -703,6 +707,18 @@ textarea {
   margin-right: 4px;
 }
 
+.mistake-list li {
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.mistake-list li.selected {
+  border-color: var(--accent);
+  background: rgba(224, 165, 63, 0.08);
+}
+
 .badge.blunder {
   background: var(--danger);
   color: #fff;
@@ -723,6 +739,8 @@ textarea {
   width: 100%;
   height: auto;
   border-radius: 8px;
+  cursor: crosshair;
+  touch-action: manipulation;
 }
 
 .graph-good-bg {
@@ -745,6 +763,66 @@ textarea {
 
 .graph-mistake {
   fill: var(--danger);
+}
+
+.graph-selection-line {
+  stroke: #e8e8f0;
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  pointer-events: none;
+}
+
+.graph-selection {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.graph-slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.analysis-position {
+  margin: 10px 0 14px;
+}
+
+.analysis-position-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.analysis-position-header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysis-position-eval {
+  color: var(--accent);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 390px) {
+  .analysis-position-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .analysis-position-eval {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .analysis-position-header .btn:last-child {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
 }
 
 /* ---- 特訓タブ ---- */
